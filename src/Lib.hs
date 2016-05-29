@@ -1,15 +1,9 @@
-module Lib
-    ( someFunc
-    ) where
+module Lib where
 
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
-import Control.Monad.Trans.Reader
 import qualified Data.Map.Strict as M
-import Debug.Trace
-
-someFunc :: IO ()
-someFunc = putStrLn "someFunc"
+import Data.List (intercalate)
 
 type Name = String
 
@@ -17,15 +11,11 @@ data Term = T
           | F
           | Var Name
           | Not Term
-          | Or Term Term
-          | And Term Term
-
--- newtype Counter = Counter { getCounter :: Int }
+          | Or [Term]
+          | And [Term]
+  deriving (Show, Eq)
 
 type Counter = Int
-
-initCounter :: Counter
-initCounter = 0
 
 fresh :: State Counter Counter
 fresh = do
@@ -35,37 +25,56 @@ fresh = do
 -- Variable environment.
 type Env = M.Map Name Counter
 
--- http://www.satcompetition.org/2004/format-benchmarks2004.html
+-- Evaulate terms and emit DIMACS body format.
 --
--- TODO need to add Reader for var name to integer
-toDimacs :: Term -> ReaderT Env (State Counter) String
-toDimacs T = return "true"
-toDimacs F = return "false"
-toDimacs (Var n) = do
-  env <- ask
-  let m = M.lookup n (traceShowId env)
+-- http://www.satcompetition.org/2009/format-benchmarks2009.html
+--
+emit :: Term -> StateT Env (State Counter) String
+emit T = return "true"
+emit F = return "false"
+emit (Var n) = do
+  env <- get
+  let m = M.lookup n env
   s <- case m of
          Just i ->
            return i
          Nothing -> do
            i <- lift fresh
            lift (put i)
-           env <- ask
+           modify (M.insert n i)
            return i
   return $ show s
-toDimacs (Not t) = do
-  ts <- toDimacs t
+emit (Not t) = do
+  ts <- emit t
   return $ "-" ++ ts
-toDimacs (Or t1 t2) = do
-  t1s <- toDimacs t1
-  t2s <- toDimacs t2
-  return $ t1s ++ " " ++ t2s
-toDimacs (And t1 t2) = do
-  t1s <- toDimacs t1
-  t2s <- toDimacs t2
-  return $ t1s ++ "\n" ++ t2s
+emit (Or terms) = do
+  s <- mapM emit terms
+  return $ unwords s
+emit (And terms) = do
+  s <- mapM emit terms
+  return $ intercalate " 0\n" s ++ " 0"
 
-run :: ReaderT Env (State Counter) a -> a
-run s = evalState (runReaderT s M.empty) initCounter
+-- Returns number of conjunctions in terms.
+-- https://en.wikipedia.org/wiki/Conjunctive_normal_form
+numConjunctions :: Term -> Int
+numConjunctions (And terms) = length terms
+numConjunctions _ = 0
 
--- putStrLn $ run (toDimacs (And (Or (Var "a") (Not (Var "a"))) (Var "b")))
+dimacsHeaders :: Int -> Int -> String
+dimacsHeaders terms conjs = "p cnf " ++ show terms ++ " " ++ show conjs
+
+-- Take term and emit a valid DIMACS string content.
+--
+emitDimacs :: Term -> String
+emitDimacs term = do
+  let stm = emit term
+  let (str, env) = evalState (runStateT stm M.empty) 0
+  let numVars = M.size env
+  let numConjs = numConjunctions term
+  dimacsHeaders numVars numConjs ++ "\n" ++ str
+
+-- run :: StateT Env (State Counter) a -> a
+-- run s = evalState (evalStateT s M.empty) 0
+-- putStrLn $ run (emit (And [(Or [(Var "a"), (Not (Var "b"))]), (Var "a")]))
+-- putStrLn $ emitDimacs (And [(Or [(Var "a"), (Not (Var "b"))]), (Var "a")])
+

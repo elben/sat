@@ -1,6 +1,7 @@
 module Main where
 
 import Lib
+import qualified TicTacToe
 
 main :: IO ()
-main = someFunc
+main = putStrLn $ emitDimacs TicTacToe.canEndInTie
