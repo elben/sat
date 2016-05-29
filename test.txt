@@ -1,0 +1,29 @@
+
+123
+456
+789
+
+p1
+p2
+
+o1 - o in position 1
+x1 - x in position 1
+
+A winning position for o:
+
+o1 o2 o3
+
+A tie position:
+
+xxo
+oox
+xox
+
+-(o1 ^ o2 ^ o3) ^
+-(o4 ^ o5 ^ o6) ^
+-(o7 ^ o8 ^ o9) ^
+
+-(o1 ^ o4 ^ o7) ^
+...
+
+
