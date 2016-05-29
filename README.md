@@ -8,11 +8,26 @@ SAT solvers that accepts this format, like
 DIMACS requires your statement to be in CNF (conjunctive normal form). `sat`
 currently cannot convert arbitrary statements to CNF.
 
+# Installing
+
+On OS X, the easiest SAT solver to use is `clasp`:
+
 ```bash
 brew install clasp
+```
 
-cd sat/
+# Using
 
+## Tic Tac Toe
+
+I have the `TicTacToe` example that proves that tic-tac-toe can end in a tie.
+Even though we all learned this at the age of five, it's a small problem that
+we can all understand.
+
+The `TicTacToe.hs` file contains detailed description on how we specify this
+problem.
+
+```bash
 stack ghci
 putStrLn $ emitDimacs TicTacToe.canEndInTie
 
