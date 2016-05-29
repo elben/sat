@@ -5,8 +5,8 @@ format](http://www.satcompetition.org/2009/format-benchmarks2009.html) used in
 SAT solvers that accepts this format, like
 [clasp](http://www.cs.uni-potsdam.de/clasp/) and [MiniSat](http://minisat.se/).
 
-DIMACS requires your statement to be in CNF (conjunctive normal form). `sat`
-currently cannot convert arbitrary statements to CNF.
+DIMACS requires your proposition to be in CNF (conjunctive normal form). `sat`
+currently cannot convert arbitrary propositions to CNF.
 
 # Installing
 
@@ -58,3 +58,5 @@ Inspired by Felienne Hermans' [Quarto](https://github.com/Felienne/Quarto
 ) talk at LambdaConf 2016.
 
 [clasp](http://www.cs.uni-potsdam.de/clasp/)
+
+http://www.cs.duke.edu/courses/summer13/compsci230/restricted/lectures/L03.pdf

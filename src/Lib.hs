@@ -7,9 +7,7 @@ import Data.List (intercalate)
 
 type Name = String
 
-data Term = T
-          | F
-          | Var Name
+data Term = Var Name
           | Not Term
           | Or [Term]
           | And [Term]
@@ -17,6 +15,8 @@ data Term = T
 
 type Counter = Int
 
+-- Get a fresh variable. Also updates the counter.
+--
 fresh :: State Counter Counter
 fresh = do
   modify (+1)
@@ -25,13 +25,62 @@ fresh = do
 -- Variable environment.
 type Env = M.Map Name Counter
 
--- Evaulate terms and emit DIMACS body format.
+-- Converting to CNF form
+--
+-- http://cs.jhu.edu/~jason/tutorials/convert-to-CNF
+-- https://april.eecs.umich.edu/courses/eecs492_w10/wiki/images/6/6b/CNF_conversion.pdf
+-- http://math.stackexchange.com/questions/214338/how-to-convert-to-conjunctive-normal-form
+
+-- Converts a Term into CNF format, if possible.
+cnf :: Term -> Maybe Term
+cnf (Var n) = Just $ Var n
+cnf (Not term) =
+  --      ~a  ==> ~a
+  --    ~(~a) ==> a
+  -- ~(a v b) ==> ~a ^ ~b
+  -- ~(a ^ b) ==> ~a v ~b
+  case term of
+    Var n -> Just $ Not (Var n)
+    Not t -> cnf t
+    Or terms -> cnf $ And $ map Not terms
+    And terms -> cnf $ Or $ map Not terms
+
+-- (a ^ b) v c v d
+-- ==>
+-- ((a v c) ^ (b v c)) v d
+-- ==>
+-- (a v c v d) ^ (b v c v d)
+--
+cnf (Or terms) =
+  let f = foldl (\b a -> b) [] terms
+  in _
+cnf (Or terms) =
+  case terms of
+    -- Base case: every term is a var
+    [Var _, Var _] -> return $ Or terms
+
+
+    -- (a ^ b ^ c) v d v rest...
+    -- ==>
+    -- (a v d) ^ (b v d) ^ (c v d) ^ rest...
+    (And terms'):term:rest -> do
+      terms'' <- sequence $ map cnf terms'
+      let terms''' = map (\t -> (Or [t, term])) terms''
+      return $ Or terms'''
+    -- (Var p):(And terms'):rest -> _
+cnf (And terms) = undefined
+
+reduceOr :: Term -> Maybe[Term]
+reduceOr terms@(Or [Var _, Var _]) = Just terms
+reduceOr terms@(Or [Var _, Var _]) = Just terms
+
+
+-- Emit DIMACS body format.
 --
 -- http://www.satcompetition.org/2009/format-benchmarks2009.html
 --
+-- TODO!!! Describe this.
 emit :: Term -> StateT Env (State Counter) String
-emit T = return "true"
-emit F = return "false"
 emit (Var n) = do
   env <- get
   let m = M.lookup n env

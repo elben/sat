@@ -13,7 +13,7 @@ import Lib
 -- Our vars are player positions. @x1@ is true if an 'X' has been played in
 -- position 1. False otherwise.
 --
--- To build our statement of a tie, we need to specify:
+-- To build our proposition representing a tie, we need to specify:
 --
 -- - Player X is not in a winning position
 -- - Player O is not in a winning position

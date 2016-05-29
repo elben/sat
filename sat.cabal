@@ -1,6 +1,6 @@
 name:                sat
 version:             0.1.0.0
-synopsis:            Build and prepare statements for SAT solvers.
+synopsis:            Build and prepare propositions for SAT solvers.
 description:         Please see README.md
 homepage:            https://github.com/elben/sat
 license:             BSD3
