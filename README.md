@@ -18,6 +18,14 @@ brew install clasp
 
 # Using
 
+```
+stack ghci
+stack build
+stack exec doctest -- -isrc -Wall -fno-warn-type-defaults src/Lib.hs
+
+stack exec sat-exe
+```
+
 ## Tic Tac Toe
 
 I have the `TicTacToe` example that proves that tic-tac-toe can end in a tie.

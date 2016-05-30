@@ -5,6 +5,10 @@ import Control.Monad.Trans.State
 import qualified Data.Map.Strict as M
 import Data.List (intercalate)
 
+-- $setup
+-- >>> import Test.QuickCheck.Function
+-- >>> import Test.QuickCheck
+
 type Name = String
 
 data Term = Var Name
@@ -25,55 +29,120 @@ fresh = do
 -- Variable environment.
 type Env = M.Map Name Counter
 
--- Converting to CNF form
+-- | Converts a Term into CNF format.
 --
--- http://cs.jhu.edu/~jason/tutorials/convert-to-CNF
--- https://april.eecs.umich.edu/courses/eecs492_w10/wiki/images/6/6b/CNF_conversion.pdf
--- http://math.stackexchange.com/questions/214338/how-to-convert-to-conjunctive-normal-form
-
--- Converts a Term into CNF format, if possible.
-cnf :: Term -> Maybe Term
-cnf (Var n) = Just $ Var n
+-- >>> cnf $ Var "a"
+-- Var "a"
+--
+-- >>> cnf $ Not (Not (Var "a"))
+-- Var "a"
+--
+-- ~(a v b)
+-- ~a ^ ~b
+-- >>> cnf $ Not (Or [Var "a", Var "b"])
+-- And [Not (Var "a"),Not (Var "b")]
+--
+-- ~(a ^ b)
+-- ~a v ~b
+-- >>> cnf $ Not (And [Var "a", Var "b"])
+-- Or [Not (Var "a"),Not (Var "b")]
+--
+-- (a ^ b) ^ c
+-- a ^ b ^ c
+-- >>> cnf $ And [And [Var "a", Var "b"], Var "c"]
+-- And [Var "a",Var "b",Var "c"]
+--
+-- a v (b v c)
+-- (a v b v c)
+-- >>> cnf (Or [Var "a", Or [Var "b", Var "c"]])
+-- Or [Var "a",Var "b",Var "c"]
+--
+-- (b ^ c) v a
+-- (b v a) ^ (c v a)
+-- >>> cnf (Or [And [Var "b", Var "c"], Var "a"])
+-- And [Or [Var "b",Var "a"],Or [Var "c",Var "a"]]
+--
+-- (b ^ c) v a v d
+-- ((b v a) ^ (c v a)) v d
+-- ((b v a) ^ (c v a)) v d
+-- ((b v a) v d) ^ ((c v a) v d)
+-- (b v a v d) ^ (c v a v d)
+-- >>> cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
+-- And [Or [Var "b",Var "a",Var "d"],Or [Var "c",Var "a",Var "d"]]
+--
+-- (a ^ (b v c)) v (d ^ e ^ f) v (g ^ h)
+-- >>> cnf (Or [And [Var "a", Or [Var "b", Var "c"]], And [Var "d", Var "e", Var "f"], And [Var "g", Var "h"]])
+--
+cnf :: Term -> Term
+cnf (Var n) = Var n
 cnf (Not term) =
   --      ~a  ==> ~a
   --    ~(~a) ==> a
   -- ~(a v b) ==> ~a ^ ~b
   -- ~(a ^ b) ==> ~a v ~b
   case term of
-    Var n -> Just $ Not (Var n)
+    Var n -> Not (Var n)
     Not t -> cnf t
-    Or terms -> cnf $ And $ map Not terms
-    And terms -> cnf $ Or $ map Not terms
+    Or terms -> cnf $ And $ map Not terms -- De Morgan's
+    And terms -> cnf $ Or $ map Not terms -- De Morgan's
+cnf (And terms) =
+  -- Because we're aiming for CNF, ands are easy to handle. We just evaluate the
+  -- inner terms and flatten them if necessary.
+  --
+  -- a ^ b  => a ^ b
+  -- a ^ (b ^ c) => a ^ b ^ c
+  -- a ^ (b v c) => a ^ (b v c)
+  -- a ^ !b => a ^ !b
+  --
+  let terms' = map cnf terms
+  in flattenTerm $ And $ flattenAnd terms'
+cnf (Or (And terms : q : rest)) =
+  -- Use Distributive property to convert (a ^ b) v q v rest...
+  -- ==> ((a v q) ^ (b v q)) v rest...
+  --
+  -- Then, call `cnf` again on this new thing, because it may have to distribute
+  -- again.
+  --
+  -- Normalize each set of terms:
+  let terms' = map cnf terms
+      q' = cnf q
+      rest' = map cnf rest
+      terms'' = map (\t -> Or [t,q']) terms'
+      -- ^ This interleaves @q'@ into the ^ terms.
+      -- So that (a ^ b) v q v rest... ==> ((a v q) ^ (b v q)) v rest...
+  in cnf $ Or (And terms'': rest') -- Call `cnf` again to distribute further.
+cnf (Or (q : And terms : rest)) =
+  -- Use commutative property to just switch terms and use above implementation.
+  cnf (Or (And terms : q : rest))
+cnf (Or terms) =
+  -- Base case: there is no leading ^ term, or there is nothing left to
+  -- distribute. So just flatten things if necessary.
+  let terms' = map cnf terms
+  in flattenTerm $ Or $ flattenOr terms'
 
--- (a ^ b) v c v d
--- ==>
--- ((a v c) ^ (b v c)) v d
--- ==>
--- (a v c v d) ^ (b v c v d)
+-- | Flatten And using associative property.
 --
-cnf (Or terms) =
-  let f = foldl (\b a -> b) [] terms
-  in _
-cnf (Or terms) =
-  case terms of
-    -- Base case: every term is a var
-    [Var _, Var _] -> return $ Or terms
+-- y ^ (x ^ z) ^ (y ^ z) ^ (u v w)
+-- y ^ x ^ z ^ y ^ z ^ (u v w)
+-- >>> flattenAnd [Var "y", And [Var "x", Var "z"], And [Var "y", Var "z"], Or [Var "u", Var "w"]]
+-- [Var "y",Var "x",Var "z",Var "y",Var "z",Or [Var "u",Var "w"]]
+--
+flattenAnd :: [Term] -> [Term]
+flattenAnd [] = []
+flattenAnd (And terms:rest) = terms ++ flattenAnd rest
+flattenAnd (t:rest) = t : flattenAnd rest
 
+-- | Flatten Or using associative property.
+--
+flattenOr :: [Term] -> [Term]
+flattenOr [] = []
+flattenOr (Or terms:rest) = terms ++ flattenOr rest
+flattenOr (t:rest) = t : flattenOr rest
 
-    -- (a ^ b ^ c) v d v rest...
-    -- ==>
-    -- (a v d) ^ (b v d) ^ (c v d) ^ rest...
-    (And terms'):term:rest -> do
-      terms'' <- sequence $ map cnf terms'
-      let terms''' = map (\t -> (Or [t, term])) terms''
-      return $ Or terms'''
-    -- (Var p):(And terms'):rest -> _
-cnf (And terms) = undefined
-
-reduceOr :: Term -> Maybe[Term]
-reduceOr terms@(Or [Var _, Var _]) = Just terms
-reduceOr terms@(Or [Var _, Var _]) = Just terms
-
+flattenTerm :: Term -> Term
+flattenTerm (And [t]) = t
+flattenTerm (Or [t]) = t
+flattenTerm t = t
 
 -- Emit DIMACS body format.
 --
@@ -121,9 +190,4 @@ emitDimacs term = do
   let numVars = M.size env
   let numConjs = numConjunctions term
   dimacsHeaders numVars numConjs ++ "\n" ++ str
-
--- run :: StateT Env (State Counter) a -> a
--- run s = evalState (evalStateT s M.empty) 0
--- putStrLn $ run (emit (And [(Or [(Var "a"), (Not (Var "b"))]), (Var "a")]))
--- putStrLn $ emitDimacs (And [(Or [(Var "a"), (Not (Var "b"))]), (Var "a")])
 
