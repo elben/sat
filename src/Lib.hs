@@ -15,7 +15,7 @@ data Term = Var Name
           | Not Term
           | Or [Term]
           | And [Term]
-  deriving (Show, Eq)
+  deriving Eq
 
 type Counter = Int
 
@@ -32,35 +32,35 @@ type Env = M.Map Name Counter
 -- | Converts a Term into CNF format.
 --
 -- >>> cnf $ Var "a"
--- Var "a"
+-- a
 --
 -- >>> cnf $ Not (Not (Var "a"))
--- Var "a"
+-- a
 --
 -- ~(a v b)
 -- ~a ^ ~b
 -- >>> cnf $ Not (Or [Var "a", Var "b"])
--- And [Not (Var "a"),Not (Var "b")]
+-- (~a ^ ~b)
 --
 -- ~(a ^ b)
 -- ~a v ~b
 -- >>> cnf $ Not (And [Var "a", Var "b"])
--- Or [Not (Var "a"),Not (Var "b")]
+-- (~a v ~b)
 --
 -- (a ^ b) ^ c
 -- a ^ b ^ c
 -- >>> cnf $ And [And [Var "a", Var "b"], Var "c"]
--- And [Var "a",Var "b",Var "c"]
+-- (a ^ b ^ c)
 --
 -- a v (b v c)
 -- (a v b v c)
 -- >>> cnf (Or [Var "a", Or [Var "b", Var "c"]])
--- Or [Var "a",Var "b",Var "c"]
+-- (a v b v c)
 --
 -- (b ^ c) v a
 -- (b v a) ^ (c v a)
 -- >>> cnf (Or [And [Var "b", Var "c"], Var "a"])
--- And [Or [Var "b",Var "a"],Or [Var "c",Var "a"]]
+-- ((b v a) ^ (c v a))
 --
 -- (b ^ c) v a v d
 -- ((b v a) ^ (c v a)) v d
@@ -68,10 +68,11 @@ type Env = M.Map Name Counter
 -- ((b v a) v d) ^ ((c v a) v d)
 -- (b v a v d) ^ (c v a v d)
 -- >>> cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
--- And [Or [Var "b",Var "a",Var "d"],Or [Var "c",Var "a",Var "d"]]
+-- ((b v a v d) ^ (c v a v d))
 --
 -- (a ^ (b v c)) v (d ^ e ^ f) v (g ^ h)
 -- >>> cnf (Or [And [Var "a", Or [Var "b", Var "c"]], And [Var "d", Var "e", Var "f"], And [Var "g", Var "h"]])
+-- ((g v d v a) ^ (h v d v a) ^ (g v e v a) ^ (h v e v a) ^ (g v f v a) ^ (h v f v a) ^ (g v d v b v c) ^ (h v d v b v c) ^ (g v e v b v c) ^ (h v e v b v c) ^ (g v f v b v c) ^ (h v f v b v c))
 --
 cnf :: Term -> Term
 cnf (Var n) = Var n
@@ -125,7 +126,7 @@ cnf (Or terms) =
 -- y ^ (x ^ z) ^ (y ^ z) ^ (u v w)
 -- y ^ x ^ z ^ y ^ z ^ (u v w)
 -- >>> flattenAnd [Var "y", And [Var "x", Var "z"], And [Var "y", Var "z"], Or [Var "u", Var "w"]]
--- [Var "y",Var "x",Var "z",Var "y",Var "z",Or [Var "u",Var "w"]]
+-- [y,x,z,y,z,(u v w)]
 --
 flattenAnd :: [Term] -> [Term]
 flattenAnd [] = []
@@ -191,3 +192,8 @@ emitDimacs term = do
   let numConjs = numConjunctions term
   dimacsHeaders numVars numConjs ++ "\n" ++ str
 
+instance Show Term where
+  show (Var v) = v
+  show (Not t) = "~" ++ show t
+  show (And terms) = "(" ++ intercalate " ^ " (map show terms) ++ ")"
+  show (Or terms) = "(" ++ intercalate " v " (map show terms) ++ ")"

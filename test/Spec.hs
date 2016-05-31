@@ -10,10 +10,8 @@ prop_revrev xs = reverse xs == xs
 
 -- http://book.realworldhaskell.org/read/testing-and-quality-assurance.html
 --
--- generate 10 (System.Random.mkStdGen 2) arbitrary :: [Term]
---
 instance Arbitrary Term where
-  -- arbitrary:: Gen Term
+  -- arbitrary :: Gen Term
   arbitrary = do
     n <- choose (1, 2) :: Gen Int
     case n of
@@ -23,7 +21,28 @@ instance Arbitrary Term where
       2 -> do depth <- choose (2, 4) :: Gen Int
               arbitraryWithDepth depth
 
-  shrink = undefined
+  -- | Shrink Term.
+  --
+  -- >>> shrink (Var "v")
+  -- []
+  --
+  -- >>> shrink (Not (Var "v"))
+  -- [v]
+  --
+  -- a v (~b v c)
+  -- a, (~b v c), ~b, c
+  -- >>> shrink (Or [Var "a", Or [Not (Var "b"),Var "c"]])
+  -- [a,(~b v c),(),(~b v c v (b) v ())]
+  --
+  -- shrink :: Term -> [Term]
+  shrink (Var v) = []
+  shrink (Not t) = t : shrink t
+  shrink (Or terms) =
+    -- order by most aggressive shrinking first
+    -- shrink to subterms
+    terms ++
+    -- recursively shrink each subterm
+    [Or ts | ts <- map shrink terms]
 
 arbitraryWithDepth :: Int -> Gen Term
 arbitraryWithDepth n =
@@ -51,3 +70,4 @@ arbitraryWithDepth n =
 -- sample' arbitrary :: IO [Term]
 -- generate $ vectorOf 1 arbitrary :: IO [Term]
 -- generate arbitrary :: IO [Term]
+--
