@@ -57,6 +57,12 @@ type Env = M.Map Name Counter
 -- >>> cnf (Or [Var "a", Or [Var "b", Var "c"]])
 -- (a v b v c)
 --
+-- ~(y ^ (i v j))
+-- ~y v (~i ^ ~j)
+-- (~y v ~i) ^ (~y v ~j)
+-- >>> cnf $ Not (And [Var "y",Or [Var "i",Var "j"]])
+-- ((~i v ~y) ^ (~j v ~y))
+--
 -- (b ^ c) v a
 -- (b v a) ^ (c v a)
 -- >>> cnf (Or [And [Var "b", Var "c"], Var "a"])
@@ -116,10 +122,17 @@ cnf (Or (q : And terms : rest)) =
   -- Use commutative property to just switch terms and use above implementation.
   cnf (Or (And terms : q : rest))
 cnf (Or terms) =
-  -- Base case: there is no leading ^ term, or there is nothing left to
-  -- distribute. So just flatten things if necessary.
   let terms' = map cnf terms
-  in flattenTerm $ Or $ flattenOr terms'
+      flattened = flattenTerm $ Or $ flattenOr terms'
+  in
+    if isCnf flattened
+    -- Base case: there is no leading ^ term, or there is nothing left to
+    -- distribute. So just flatten things if necessary.
+    then flattened
+    -- Evaluation of terms changed this current term; needs to re-evaluate.
+    -- Example: a v ~(b v c) ==> a v (~b ^ ~c). But now we need to re-evaluate
+    -- to (a v ~b) ^ (a v ~c).
+    else cnf flattened
 
 -- | Flatten And using associative property.
 --
@@ -197,3 +210,43 @@ instance Show Term where
   show (Not t) = "~" ++ show t
   show (And terms) = "(" ++ intercalate " ^ " (map show terms) ++ ")"
   show (Or terms) = "(" ++ intercalate " v " (map show terms) ++ ")"
+
+-- | Checks if Term is in CNF form.
+--
+-- >>> isCnf (Var "a")
+-- True
+--
+-- >>> isCnf (Not (Var "a"))
+-- True
+--
+-- a ^ b ^ (c v d v ~a v ~b)
+-- >>> isCnf (And [Var "a",Var "b",Or [Var "c",Var "d",Not (Var "a"), Not (Var "b")]])
+-- True
+--
+-- ~y v (~i ^ ~i)
+-- >>> isCnf (Or [Not (Var "y"),And [Not (Var "i"),Not (Var "i")]])
+-- False
+--
+-- a ^ b ^ (c v d v ~(a v b))
+-- >>> isCnf (And [Var "a",Var "b",Or [Var "c",Var "d",Not (Or [Var "a", Var "b"])]])
+-- False
+--
+-- (a v ~b) ^ (c v (d ^ e))
+-- >>> isCnf (And [Or [Var "a", Not (Var "b")], Or [Var "c", And [Var "d", Var "e"]]])
+-- False
+--
+isCnf :: Term -> Bool
+isCnf (Var _) = True
+isCnf (Not (Var _)) = True
+isCnf (Not _) = False
+isCnf (And terms) = all noAndTerms terms
+isCnf (Or terms) = all noAndTerms terms
+
+-- | Checks that there are no And terms in the given term.
+--
+noAndTerms :: Term -> Bool
+noAndTerms (Var _) = True
+noAndTerms (Not (Var _)) = True
+noAndTerms (Not _) = False
+noAndTerms (And _) = False
+noAndTerms (Or terms) = all noAndTerms terms

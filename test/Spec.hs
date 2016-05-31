@@ -3,7 +3,11 @@ import Test.QuickCheck
 import Lib
 
 main :: IO ()
-main = putStrLn "Test suite not yet implemented"
+main = do
+  quickCheck prop_isCnf
+
+prop_isCnf :: Term -> Bool
+prop_isCnf t = isCnf $ cnf t
 
 prop_revrev xs = reverse xs == xs
   where types = xs::[Int]
@@ -43,12 +47,19 @@ instance Arbitrary Term where
     terms ++
     -- recursively shrink each subterm
     [Or ts | ts <- map shrink terms]
+  shrink (And terms) =
+    -- order by most aggressive shrinking first
+    -- shrink to subterms
+    terms ++
+    -- recursively shrink each subterm
+    [And ts | ts <- map shrink terms]
 
 arbitraryWithDepth :: Int -> Gen Term
 arbitraryWithDepth n =
   case n of
-    -- At bottom. Only do vars.
-    0 -> do v <- choose ('a', 'z') :: Gen Char
+    -- At bottom. Only do vars. Stop at 'u' so we don't hit 'v' to confuse with
+    -- "or".
+    0 -> do v <- choose ('a', 'u') :: Gen Char
             return $ Var [v]
     _ -> do
       m <- choose (1, 4) :: Gen Int
@@ -70,4 +81,3 @@ arbitraryWithDepth n =
 -- sample' arbitrary :: IO [Term]
 -- generate $ vectorOf 1 arbitrary :: IO [Term]
 -- generate arbitrary :: IO [Term]
---
