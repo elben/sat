@@ -1,16 +1,55 @@
 import Test.QuickCheck
 
 import Lib
+import qualified Data.Set as Set
+import qualified Data.Map.Strict as M
 
 main :: IO ()
 main = do
-  quickCheck prop_isCnf
+  quickCheck prop_cnfIsCnf
+  quickCheck prop_cnfEquivalent
 
-prop_isCnf :: Term -> Bool
-prop_isCnf t = isCnf $ cnf t
+-- | Property that cnf converts to CNF form.
+--
+prop_cnfIsCnf :: Term -> Bool
+prop_cnfIsCnf t = isCnf $ cnf t
 
-prop_revrev xs = reverse xs == xs
-  where types = xs::[Int]
+-- | Property that checks every enumeration of variable mappings. So if the term
+-- has vars a and b, go through each line in the truth table and check the
+-- original term against the CNF-ified term.
+--
+prop_cnfEquivalent :: Term -> Bool
+prop_cnfEquivalent t =
+  let t' = cnf t
+      vs = Set.elems $ vars t
+      mappings = varEnumerations vs
+  in all (\m -> eval m t == eval m t') mappings
+
+-- | All enumerations of variables and True/False.
+--
+-- >>> varEnumerations ["a", "b"]
+-- [fromList [("a",False),("b",False)], fromList [("a",False),("b",True)], ...]
+--
+varEnumerations :: [Name] -> [M.Map Name Bool]
+varEnumerations names =
+  snd $ foldl
+    (\(bitset, possibilities) b -> (nextCombination bitset, M.fromList (zip names bitset) : possibilities))
+    ([False | _ <- [1..length names]], [])
+    [1..2^length names]
+
+-- | "Add 1" to the bit set. Since we use lists, it goes left-to-right. Head of
+-- list is first bit.
+--
+-- >>> nextCombination [True, True, False, False]
+-- [False, False, True, False]
+--
+-- >>> nextCombination [False, False, True, False]
+-- [True, False, True, False]
+--
+nextCombination [] = []
+nextCombination [True] = [True] -- out of 'bits' to flip
+nextCombination (False:rest) = True:rest
+nextCombination (True:rest) = False:nextCombination rest
 
 -- http://book.realworldhaskell.org/read/testing-and-quality-assurance.html
 --

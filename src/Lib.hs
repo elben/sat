@@ -3,6 +3,7 @@ module Lib where
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
 import qualified Data.Map.Strict as M
+import qualified Data.Set as Set
 import Data.List (intercalate)
 
 -- $setup
@@ -201,6 +202,40 @@ getTerms :: Term -> [Term]
 getTerms (And terms) = terms
 getTerms (Or terms) = terms
 getTerms _ = error "Not supported"
+
+-- | Evaluate term with given mapping.
+--
+-- >>> eval (M.fromList [("a", True),("b",False)]) (And [Var "a", Not (Var "b")])
+-- Just True
+--
+-- >>> eval (M.fromList [("a", True),("b",False)]) (And [Var "a", Var "b"])
+-- Just False
+--
+-- >>> eval (M.fromList [("a", True),("b",False)]) (And [Var "a", Or [Var "a", Var "b"]])
+-- Just True
+--
+eval :: M.Map Name Bool -> Term -> Maybe Bool
+eval m (Var n) = M.lookup n m
+eval m (Not t) = do
+  b <- eval m t
+  return $ not b
+eval m (And terms) = do
+  bools <- mapM (eval m) terms
+  return $ and bools
+eval m (Or terms) = do
+  bools <- mapM (eval m) terms
+  return $ or bools
+
+-- | Find all variable names in term.
+--
+-- >>> vars (And [Or [Not (Var "a"), Var "a", Var "b"], Var "c", Not (Not (Not (Var "d")))])
+-- fromList ["a","b","c","d"]
+--
+vars :: Term -> Set.Set Name
+vars (Var n) = Set.singleton n
+vars (Not t) = vars t
+vars (And terms) = Set.unions (map vars terms)
+vars (Or terms) = Set.unions (map vars terms)
 
 -- Emit DIMACS body format.
 --

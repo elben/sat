@@ -5,16 +5,25 @@ format](http://www.satcompetition.org/2009/format-benchmarks2009.html) used in
 SAT solvers that accepts this format, like
 [clasp](http://www.cs.uni-potsdam.de/clasp/) and [MiniSat](http://minisat.se/).
 
-DIMACS requires your proposition to be in CNF (conjunctive normal form). `sat`
-currently cannot convert arbitrary propositions to CNF.
+You can also write predicates in Haskell that can be converted to conjunctive normal form.
+
+In a `stack ghci` (note that `^` means AND, and `v` means OR):
+
+```haskell
+-- (b ^ c) v a v d
+>> cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
+((b v a v d) ^ (c v a v d))
+```
 
 # Installing
 
-On OS X, the easiest SAT solver to use is `clasp`:
+`sat` needs an external SAT solver to work. On OS X, [clasp](http://www.cs.uni-potsdam.de/clasp/) is the easiest to install:
 
 ```bash
 brew install clasp
 ```
+
+On Linux and Windows, try [MiniSat](http://minisat.se/).
 
 # Using
 
@@ -58,6 +67,34 @@ clasp 3 tictactoe.txt
 # c Calls          : 1
 # c Time           : 0.001s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
 # c CPU Time       : 0.000s
+```
+
+Other problem to solve via SAT:
+
+- SuDoku
+  - http://www.cs.qub.ac.uk/~I.Spence/SuDoku/SuDoku.html
+- Subset sum
+  - http://people.clarkson.edu/~alexis/PCMI/Notes/lectureB07.pdf
+- Knapsack, binpacking, etc
+  - https://www.cs.princeton.edu/~rs/AlgsDS07/23Reductions.pdf
+  - http://faculty.ycp.edu/~dbabcock/PastCourses/cs360/lectures/lecture27.html
+
+# Development
+
+Run doc tests:
+
+```
+stack exec doctest -- -isrc -Wall -fno-warn-type-defaults src/Lib.hs
+```
+
+Run QuickCheck:
+
+```
+stack ghci
+:l test/Spec.hs
+>> main
++++ OK, passed 100 tests.
++++ OK, passed 100 tests.
 ```
 
 # References
