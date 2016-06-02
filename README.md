@@ -10,7 +10,7 @@ You can also write predicates in Haskell that can be converted to conjunctive no
 In a `stack ghci` (note that `^` means AND, and `v` means OR):
 
 ```haskell
--- (b ^ c) v a v d
+-- (b ^ c) v a v d ==> ((b v a v d) ^ (c v a v d))
 >> display $ cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
 "((b v a v d) ^ (c v a v d))"
 ```
