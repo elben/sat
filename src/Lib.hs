@@ -78,7 +78,28 @@ type Env = M.Map Name Counter
 --
 -- (a ^ (b v c)) v (d ^ e ^ f) v (g ^ h)
 -- >>> cnf (Or [And [Var "a", Or [Var "b", Var "c"]], And [Var "d", Var "e", Var "f"], And [Var "g", Var "h"]])
--- ((g v d v a) ^ (h v d v a) ^ (g v e v a) ^ (h v e v a) ^ (g v f v a) ^ (h v f v a) ^ (g v d v b v c) ^ (h v d v b v c) ^ (g v e v b v c) ^ (h v e v b v c) ^ (g v f v b v c) ^ (h v f v b v c))
+-- ((g v a v d) ^ (h v a v d) ^ (g v a v e) ^ (h v a v e) ^ (g v a v f) ^ (h v a v f) ^ (g v b v c v d) ^ (h v b v c v d) ^ (g v b v c v e) ^ (h v b v c v e) ^ (g v b v c v f) ^ (h v b v c v f))
+--
+-- TODO infinite loop. because we only look at first two elements for ands
+-- Instead, we need to iteratively go through each pair, and if one is an And,
+-- fix it. Then go throguh the list agian. So in this case below, we test a and
+-- b for Ands, then b and (c ^ d). Seeing that, we trigger the expansion. Then
+-- we cnf the entire list again.
+--
+-- When we see an ^, this infects the entire list. Every element in the Or will
+-- be touched. This seems more like a zipper. Or us n^2 iteration.
+--
+-- a v b v (c ^ d) v e v f
+-- a v ((b v c) ^ (b v d)) v e v f
+-- ((a b c) ^ (a b d)) e f
+-- ((a b c e) ^ (a b d e)) f
+-- (a b c e f) ^ (a b d e f)
+--
+-- >>> cnf $ Or [Var "a", Var "b", And [Var "c", Var "d"]]
+-- ((c v b v a) ^ (d v b v a))
+--
+-- >>> cnf $ Not (And [Not (Var "m"),Not (Var "s")])
+-- (m v s)
 --
 cnf :: Term -> Term
 cnf (Var n) = Var n
@@ -102,61 +123,84 @@ cnf (And terms) =
   -- a ^ !b => a ^ !b
   --
   let terms' = map cnf terms
-  in flattenTerm $ And $ flattenAnd terms'
-cnf (Or (And terms : q : rest)) =
-  -- Use Distributive property to convert (a ^ b) v q v rest...
-  -- ==> ((a v q) ^ (b v q)) v rest...
-  --
-  -- Then, call `cnf` again on this new thing, because it may have to distribute
-  -- again.
-  --
-  -- Normalize each set of terms:
-  let terms' = map cnf terms
-      q' = cnf q
-      rest' = map cnf rest
-      terms'' = map (\t -> Or [t,q']) terms'
-      -- ^ This interleaves @q'@ into the ^ terms.
-      -- So that (a ^ b) v q v rest... ==> ((a v q) ^ (b v q)) v rest...
-  in cnf $ Or (And terms'': rest') -- Call `cnf` again to distribute further.
-cnf (Or (q : And terms : rest)) =
-  -- Use commutative property to just switch terms and use above implementation.
-  cnf (Or (And terms : q : rest))
+  in erase $ flatten $ And terms'
 cnf (Or terms) =
   let terms' = map cnf terms
-      flattened = flattenTerm $ Or $ flattenOr terms'
   in
-    if isCnf flattened
-    -- Base case: there is no leading ^ term, or there is nothing left to
-    -- distribute. So just flatten things if necessary.
-    then flattened
-    -- Evaluation of terms changed this current term; needs to re-evaluate.
-    -- Example: a v ~(b v c) ==> a v (~b ^ ~c). But now we need to re-evaluate
-    -- to (a v ~b) ^ (a v ~c).
-    else cnf flattened
+    if isCnf (Or terms')
+    then erase $ flatten $ Or terms'
+    else
+      let terms'' = distributeOnce terms'
+      in cnf $ erase $ flatten (Or terms'')
 
--- | Flatten And using associative property.
+-- | Run through the list of or-ed terms, distributing terms into any found
+-- and-ed terms. The returned list of terms is not guaranteed to be in CNF. Will
+-- need to call `isCnf` to check whether or not another pass into distributeOnce
+-- is required.
+--
+-- Really, this looks like a zippers problem. But the zipper tool would need to
+-- able to delete-and-replace a node to substitue.
+--
+-- a v b v (c ^ d) v e v (f ^ g)
+-- >>> distributeOnce [Var "a", Var "b", And [Var "c", Var "d"], Var "e", And [Var "f", Var "g"]]
+-- [a,((c v b) ^ (d v b)),((f v e) ^ (g v e))]
+--
+-- Continuing the above.
+-- >>> distributeOnce $ distributeOnce [Var "a", Var "b", And [Var "c", Var "d"], Var "e", And [Var "f", Var "g"]]
+-- [((c v b v a) ^ (d v b v a)),((f v e) ^ (g v e))]
+--
+-- Continuing the above.
+-- >>> distributeOnce $ distributeOnce $ distributeOnce [Var "a", Var "b", And [Var "c", Var "d"], Var "e", And [Var "f", Var "g"]]
+-- [((c v b v a v ((f v e) ^ (g v e))) ^ (d v b v a v ((f v e) ^ (g v e))))]
+--
+distributeOnce :: [Term] -> [Term]
+distributeOnce [] = []
+distributeOnce [t] = [t]
+distributeOnce (And ands : t : rest) =
+  let ands' = map cnf ands
+      t' = cnf t
+      ands'' = map (\a -> flatten (Or [a,t'])) ands'
+      rest' = distributeOnce rest
+      andTerm = if length ands'' == 1 then head ands'' else And ands''
+  in andTerm : rest'
+distributeOnce (t : And ands : rest) = distributeOnce (And ands : t : rest)
+distributeOnce (t1 : rest) = t1 : distributeOnce rest
+
+topLevelAnds :: [Term] -> Bool
+topLevelAnds [] = False
+topLevelAnds (And _ : _) = True
+topLevelAnds (_ : rest) = topLevelAnds rest
+
+-- | Erase useless AND or OR wrapper.
+--
+erase :: Term -> Term
+erase (And [t]) = t
+erase (Or [t]) = t
+erase t = t
+
+-- | Flatten ANDs and ORs using associative property.
 --
 -- y ^ (x ^ z) ^ (y ^ z) ^ (u v w)
--- y ^ x ^ z ^ y ^ z ^ (u v w)
--- >>> flattenAnd [Var "y", And [Var "x", Var "z"], And [Var "y", Var "z"], Or [Var "u", Var "w"]]
--- [y,x,z,y,z,(u v w)]
+-- >>> flatten (And [Var "y", And [Var "x", Var "z"], And [Var "y", Var "z"], Or [Var "u", Var "w"]])
+-- (y ^ x ^ z ^ y ^ z ^ (u v w))
 --
-flattenAnd :: [Term] -> [Term]
-flattenAnd [] = []
-flattenAnd (And terms:rest) = terms ++ flattenAnd rest
-flattenAnd (t:rest) = t : flattenAnd rest
-
--- | Flatten Or using associative property.
+-- y v (x v z) v (y ^ z) v (u v w)
+-- >>> flatten (Or [Var "y", Or [Var "x", Var "z"], And [Var "y", Var "z"], Or [Var "u", Var "w"]])
+-- (y v x v z v (y ^ z) v u v w)
 --
-flattenOr :: [Term] -> [Term]
-flattenOr [] = []
-flattenOr (Or terms:rest) = terms ++ flattenOr rest
-flattenOr (t:rest) = t : flattenOr rest
+flatten :: Term -> Term
+flatten (And []) = And []
+flatten (And (And ands:rest)) = And (ands ++ getTerms (flatten (And rest)))
+flatten (And (t:rest)) = And (t : getTerms (flatten (And rest)))
+flatten (Or []) = Or []
+flatten (Or (Or ors:rest)) = Or (ors ++ getTerms (flatten (Or rest)))
+flatten (Or (t:rest)) = Or (t : getTerms (flatten (Or rest)))
+flatten t = t
 
-flattenTerm :: Term -> Term
-flattenTerm (And [t]) = t
-flattenTerm (Or [t]) = t
-flattenTerm t = t
+getTerms :: Term -> [Term]
+getTerms (And terms) = terms
+getTerms (Or terms) = terms
+getTerms _ = error "Not supported"
 
 -- Emit DIMACS body format.
 --
