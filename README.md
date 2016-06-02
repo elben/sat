@@ -10,9 +10,15 @@ You can also write predicates in Haskell that can be converted to conjunctive no
 In a `stack ghci` (note that `^` means AND, and `v` means OR):
 
 ```haskell
--- (b ^ c) v a v d ==> ((b v a v d) ^ (c v a v d))
+-- Convert the predicate (b ^ c) v a v d ==> ((b v a v d) ^ (c v a v d))
 >> display $ cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
 "((b v a v d) ^ (c v a v d))"
+
+-- Convert the predicate, then emit the DIMACS format.
+putStrLn $ emitDimacs $ cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
+-- p cnf 4 2
+-- 1 2 3 0
+-- 4 2 3 0
 ```
 
 # Installing
