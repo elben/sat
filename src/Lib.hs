@@ -16,7 +16,7 @@ data Term = Var Name
           | Not Term
           | Or [Term]
           | And [Term]
-  deriving Eq
+  deriving (Eq, Show)
 
 type Counter = Int
 
@@ -32,54 +32,54 @@ type Env = M.Map Name Counter
 
 -- | Converts a Term into CNF format.
 --
--- >>> cnf $ Var "a"
--- a
+-- >>> display $ cnf $ Var "a"
+-- "a"
 --
--- >>> cnf $ Not (Not (Var "a"))
--- a
+-- >>> display $ cnf $ Not (Not (Var "a"))
+-- "a"
 --
 -- ~(a v b)
 -- ~a ^ ~b
--- >>> cnf $ Not (Or [Var "a", Var "b"])
--- (~a ^ ~b)
+-- >>> display $ cnf $ Not (Or [Var "a", Var "b"])
+-- "(~a ^ ~b)"
 --
 -- ~(a ^ b)
 -- ~a v ~b
--- >>> cnf $ Not (And [Var "a", Var "b"])
--- (~a v ~b)
+-- >>> display $ cnf $ Not (And [Var "a", Var "b"])
+-- "(~a v ~b)"
 --
 -- (a ^ b) ^ c
 -- a ^ b ^ c
--- >>> cnf $ And [And [Var "a", Var "b"], Var "c"]
--- (a ^ b ^ c)
+-- >>> display $ cnf $ And [And [Var "a", Var "b"], Var "c"]
+-- "(a ^ b ^ c)"
 --
 -- a v (b v c)
 -- (a v b v c)
--- >>> cnf (Or [Var "a", Or [Var "b", Var "c"]])
--- (a v b v c)
+-- >>> display $ cnf (Or [Var "a", Or [Var "b", Var "c"]])
+-- "(a v b v c)"
 --
 -- ~(y ^ (i v j))
 -- ~y v (~i ^ ~j)
 -- (~y v ~i) ^ (~y v ~j)
--- >>> cnf $ Not (And [Var "y",Or [Var "i",Var "j"]])
--- ((~i v ~y) ^ (~j v ~y))
+-- >>> display $ cnf $ Not (And [Var "y",Or [Var "i",Var "j"]])
+-- "((~i v ~y) ^ (~j v ~y))"
 --
 -- (b ^ c) v a
 -- (b v a) ^ (c v a)
--- >>> cnf (Or [And [Var "b", Var "c"], Var "a"])
--- ((b v a) ^ (c v a))
+-- >>> display $ cnf (Or [And [Var "b", Var "c"], Var "a"])
+-- "((b v a) ^ (c v a))"
 --
 -- (b ^ c) v a v d
 -- ((b v a) ^ (c v a)) v d
 -- ((b v a) ^ (c v a)) v d
 -- ((b v a) v d) ^ ((c v a) v d)
 -- (b v a v d) ^ (c v a v d)
--- >>> cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
--- ((b v a v d) ^ (c v a v d))
+-- >>> display $ cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
+-- "((b v a v d) ^ (c v a v d))"
 --
 -- (a ^ (b v c)) v (d ^ e ^ f) v (g ^ h)
--- >>> cnf (Or [And [Var "a", Or [Var "b", Var "c"]], And [Var "d", Var "e", Var "f"], And [Var "g", Var "h"]])
--- ((g v a v d) ^ (h v a v d) ^ (g v a v e) ^ (h v a v e) ^ (g v a v f) ^ (h v a v f) ^ (g v b v c v d) ^ (h v b v c v d) ^ (g v b v c v e) ^ (h v b v c v e) ^ (g v b v c v f) ^ (h v b v c v f))
+-- >>> display $ cnf (Or [And [Var "a", Or [Var "b", Var "c"]], And [Var "d", Var "e", Var "f"], And [Var "g", Var "h"]])
+-- "((g v a v d) ^ (h v a v d) ^ (g v a v e) ^ (h v a v e) ^ (g v a v f) ^ (h v a v f) ^ (g v b v c v d) ^ (h v b v c v d) ^ (g v b v c v e) ^ (h v b v c v e) ^ (g v b v c v f) ^ (h v b v c v f))"
 --
 -- TODO infinite loop. because we only look at first two elements for ands
 -- Instead, we need to iteratively go through each pair, and if one is an And,
@@ -96,11 +96,11 @@ type Env = M.Map Name Counter
 -- ((a b c e) ^ (a b d e)) f
 -- (a b c e f) ^ (a b d e f)
 --
--- >>> cnf $ Or [Var "a", Var "b", And [Var "c", Var "d"]]
--- ((c v b v a) ^ (d v b v a))
+-- >>> display $ cnf $ Or [Var "a", Var "b", And [Var "c", Var "d"]]
+-- "((c v b v a) ^ (d v b v a))"
 --
--- >>> cnf $ Not (And [Not (Var "m"),Not (Var "s")])
--- (m v s)
+-- >>> display $ cnf $ Not (And [Not (Var "m"),Not (Var "s")])
+-- "(m v s)"
 --
 cnf :: Term -> Term
 cnf (Var n) = Var n
@@ -143,16 +143,16 @@ cnf (Or terms) =
 -- able to delete-and-replace a node to substitue.
 --
 -- a v b v (c ^ d) v e v (f ^ g)
--- >>> distributeOnce [Var "a", Var "b", And [Var "c", Var "d"], Var "e", And [Var "f", Var "g"]]
--- [a,((c v b) ^ (d v b)),((f v e) ^ (g v e))]
+-- >>> display $ Or $ distributeOnce [Var "a", Var "b", And [Var "c", Var "d"], Var "e", And [Var "f", Var "g"]]
+-- "(a v ((c v b) ^ (d v b)) v ((f v e) ^ (g v e)))"
 --
 -- Continuing the above.
--- >>> distributeOnce $ distributeOnce [Var "a", Var "b", And [Var "c", Var "d"], Var "e", And [Var "f", Var "g"]]
--- [((c v b v a) ^ (d v b v a)),((f v e) ^ (g v e))]
+-- >>> display $ Or $ distributeOnce $ distributeOnce [Var "a", Var "b", And [Var "c", Var "d"], Var "e", And [Var "f", Var "g"]]
+-- "(((c v b v a) ^ (d v b v a)) v ((f v e) ^ (g v e)))"
 --
 -- Continuing the above.
--- >>> distributeOnce $ distributeOnce $ distributeOnce [Var "a", Var "b", And [Var "c", Var "d"], Var "e", And [Var "f", Var "g"]]
--- [((c v b v a v ((f v e) ^ (g v e))) ^ (d v b v a v ((f v e) ^ (g v e))))]
+-- >>> display $ Or $ distributeOnce $ distributeOnce $ distributeOnce [Var "a", Var "b", And [Var "c", Var "d"], Var "e", And [Var "f", Var "g"]]
+-- "(((c v b v a v ((f v e) ^ (g v e))) ^ (d v b v a v ((f v e) ^ (g v e)))))"
 --
 distributeOnce :: [Term] -> [Term]
 distributeOnce [] = []
@@ -182,12 +182,12 @@ erase t = t
 -- | Flatten ANDs and ORs using associative property.
 --
 -- y ^ (x ^ z) ^ (y ^ z) ^ (u v w)
--- >>> flatten (And [Var "y", And [Var "x", Var "z"], And [Var "y", Var "z"], Or [Var "u", Var "w"]])
--- (y ^ x ^ z ^ y ^ z ^ (u v w))
+-- >>> display $ flatten (And [Var "y", And [Var "x", Var "z"], And [Var "y", Var "z"], Or [Var "u", Var "w"]])
+-- "(y ^ x ^ z ^ y ^ z ^ (u v w))"
 --
 -- y v (x v z) v (y ^ z) v (u v w)
--- >>> flatten (Or [Var "y", Or [Var "x", Var "z"], And [Var "y", Var "z"], Or [Var "u", Var "w"]])
--- (y v x v z v (y ^ z) v u v w)
+-- >>> display $ flatten (Or [Var "y", Or [Var "x", Var "z"], And [Var "y", Var "z"], Or [Var "u", Var "w"]])
+-- "(y v x v z v (y ^ z) v u v w)"
 --
 flatten :: Term -> Term
 flatten (And []) = And []
@@ -284,11 +284,11 @@ emitDimacs term = do
   let numConjs = numConjunctions term
   dimacsHeaders numVars numConjs ++ "\n" ++ str
 
-instance Show Term where
-  show (Var v) = v
-  show (Not t) = "~" ++ show t
-  show (And terms) = "(" ++ intercalate " ^ " (map show terms) ++ ")"
-  show (Or terms) = "(" ++ intercalate " v " (map show terms) ++ ")"
+display :: Term -> String
+display (Var v) = v
+display (Not t) = "~" ++ display t
+display (And terms) = "(" ++ intercalate " ^ " (map display terms) ++ ")"
+display (Or terms) = "(" ++ intercalate " v " (map display terms) ++ ")"
 
 -- | Checks if Term is in CNF form.
 --
