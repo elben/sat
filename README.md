@@ -75,24 +75,50 @@ clasp 3 tictactoe.txt
 # c CPU Time       : 0.000s
 ```
 
-TODO!!! This is the interesting stuff:
+## Clique
+
+The `Clique` module allows you to build Clique propositions.
+
+A [clique](https://en.wikipedia.org/wiki/Clique_(graph_theory)) is a sub-graph
+of an undirected graph where every node is connected to every other node.
+
+For example, the graph below has a clique of size 3. Namely, the nodes
+`{2,3,5}` form the clique because each node is connected to every other node.
+
+```
+       3----4
+      / \   |
+     2---5--6
+    /
+   1
+```
+
+To use:
+
+```
+stack ghci
+:l app/Clique.hs
+
+>>> putStrLn $ emitDimacs $ buildGraph 6 3 [(1,2), (2,3), (2,5), (3,4), (3,5), (4,6), (5,6)]
+
+# Copy-paste output into clique.txt.
+
+clasp 1 clique.txt
+
+# c Reading from clique.txt
+# c Solving...
+# c Answer: 1
+# v -1 2 -3 -4 -5 -6 -7 -8 -9 -10 11 -12 -13 -14 15 -16 -17 -18 0
+# s SATISFIABLE
+```
+
+## Others
+
 Other problem to solve via SAT:
 
-- SuDoku
-  - http://www.cs.qub.ac.uk/~I.Spence/SuDoku/SuDoku.html
-- Clique
-  - http://blog.computationalcomplexity.org/2006/12/reductions-to-sat.html
-  - "We can get similarly nice reductions for many other NP-complete problems
-  like 3-COLORING and HAMILTONIAN CYCLE. But there is no general procedure for
-  producing simple formula, especially if there are calculations involved like
-  SUBSET SUM."
-- Subset sum
-  - http://people.clarkson.edu/~alexis/PCMI/Notes/lectureB07.pdf
-  - http://cs.mcgill.ca/~lyepre/pdf/assignment2-solutions/subsetSumNPCompleteness.pdf
-  - http://users.cms.caltech.edu/~umans/cs21/lec22.pdf
-- Knapsack, binpacking, etc
-  - https://www.cs.princeton.edu/~rs/AlgsDS07/23Reductions.pdf
-  - http://faculty.ycp.edu/~dbabcock/PastCourses/cs360/lectures/lecture27.html
+- [SuDoku](http://www.cs.qub.ac.uk/~I.Spence/SuDoku/SuDoku.html)
+- 3-Coloring
+- Hamiltonian cycle
 
 # Development
 
