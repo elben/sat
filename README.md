@@ -75,12 +75,21 @@ clasp 3 tictactoe.txt
 # c CPU Time       : 0.000s
 ```
 
+TODO!!! This is the interesting stuff:
 Other problem to solve via SAT:
 
 - SuDoku
   - http://www.cs.qub.ac.uk/~I.Spence/SuDoku/SuDoku.html
+- Clique
+  - http://blog.computationalcomplexity.org/2006/12/reductions-to-sat.html
+  - "We can get similarly nice reductions for many other NP-complete problems
+  like 3-COLORING and HAMILTONIAN CYCLE. But there is no general procedure for
+  producing simple formula, especially if there are calculations involved like
+  SUBSET SUM."
 - Subset sum
   - http://people.clarkson.edu/~alexis/PCMI/Notes/lectureB07.pdf
+  - http://cs.mcgill.ca/~lyepre/pdf/assignment2-solutions/subsetSumNPCompleteness.pdf
+  - http://users.cms.caltech.edu/~umans/cs21/lec22.pdf
 - Knapsack, binpacking, etc
   - https://www.cs.princeton.edu/~rs/AlgsDS07/23Reductions.pdf
   - http://faculty.ycp.edu/~dbabcock/PastCourses/cs360/lectures/lecture27.html
