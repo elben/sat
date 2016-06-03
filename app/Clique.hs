@@ -7,7 +7,65 @@ import Data.Foldable (foldl')
 import Data.Maybe (fromJust)
 import Control.Monad (liftM)
 
--- https://en.wikipedia.org/wiki/Clique_(graph_theory)
+-- How to use:
+--
+--       3----4
+--      / \   |
+--     2---5--6
+--    /
+--   1
+--
+-- Emit SAT question for if there's a clique of size k = 3 for the graph above:
+--
+-- putStrLn $ emitDimacsWithDebug True $ buildGraph 6 3 [(1,2), (2,3), (2,5), (3,4), (3,5), (4,6), (5,6)]
+
+-- A clique is a sub-graph of an undirected graph where every node is connected
+-- to every other node. See: https://en.wikipedia.org/wiki/Clique_(graph_theory)
+--
+-- We can use SAT to check if a graph has a clique of size k.
+--
+-- For example, the graph below has a clique of size 3. Namely, the nodes
+-- {2,3,5} form the clique because each node is connected to every other node.
+--
+--       3----4
+--      / \   |
+--     2---5--6
+--    /
+--   1
+--
+-- The variables
+-- ==================
+-- The variables in the SAT are y[i][r], where y[i][r] is true if node i is in
+-- position r of the clique (where 1 <= r <= k).
+--
+-- So in the example, a solution for the clique of k = 3 is:
+--
+--   y[1][3] = true  // Node 1 is in clique position 3
+--   y[2][2] = true
+--   y[1][3] = true
+--
+-- The clauses
+-- ==================
+--
+-- There are three clauses.
+--
+--   1. There is a node in every clique position.
+--
+--          For each i, r <- [1..k]:
+--          y[1][r] OR y[2][r] OR ...
+--
+--   2. A node cannot occupy multiple clique positions.
+--
+--          For each i, r < s:
+--          ~(y[1][r] ^ y[1][s]) ^ ...
+--
+--   3. If there is no edge between two nodes, then those two nodes cannot be in
+--      the clique.
+--
+--          For each r < s, i < j where (i,j) is not an edge in the graph:
+--          ~(y[i][r] ^ y[j][s])
+--
+-- This is extracted from:
 -- http://blog.computationalcomplexity.org/2006/12/reductions-to-sat.html
 
 -- | Takes a list of edge pairs and returns the correponding SAT term.
