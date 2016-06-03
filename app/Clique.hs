@@ -89,7 +89,7 @@ buildGraph :: Int -> Int -> [(Int,Int)] -> Term
 buildGraph n k edges = cnf $
   And [nodeInEveryPosition n k,
        nodeCannotOccupySameCliquePosition n k,
-       edgeDefinition n k edges]
+       unconnectedNodesNotInClique n k edges]
 
 -- | Builds a Var term based on the node position and the clique position.
 --
@@ -141,7 +141,7 @@ nodeCannotOccupySameCliquePosition n k = And
 --
 --   1---2---3     Graph A
 --
--- >>> display $ edgeDefinition 3 2 [(1,2),(2,3)]
+-- >>> display $ unconnectedNodesNotInClique 3 2 [(1,2),(2,3)]
 -- "(~(y[1][1] ^ y[3][2]) ^ ~(y[1][2] ^ y[3][1]))"
 --
 --
@@ -149,11 +149,11 @@ nodeCannotOccupySameCliquePosition n k = And
 --    \ /
 --     4
 --
--- >>> display $ edgeDefinition 4 3 [(1,2),(1,4),(2,3),(2,4)]
+-- >>> display $ unconnectedNodesNotInClique 4 3 [(1,2),(1,4),(2,3),(2,4)]
 -- "(~(y[1][1] ^ y[3][2]) ^ ~(y[1][2] ^ y[3][1]) ^ ~(y[3][1] ^ y[4][2]) ^ ~(y[3][2] ^ y[4][1]) ^ ~(y[1][1] ^ y[3][3]) ^ ~(y[1][3] ^ y[3][1]) ^ ~(y[3][1] ^ y[4][3]) ^ ~(y[3][3] ^ y[4][1]) ^ ~(y[1][2] ^ y[3][3]) ^ ~(y[1][3] ^ y[3][2]) ^ ~(y[3][2] ^ y[4][3]) ^ ~(y[3][3] ^ y[4][2]))
 --
-edgeDefinition :: Int -> Int -> [(Int,Int)] -> Term
-edgeDefinition n k edges = flatten $ And
+unconnectedNodesNotInClique :: Int -> Int -> [(Int,Int)] -> Term
+unconnectedNodesNotInClique n k edges = flatten $ And
   [And [Not (And [var a r, var b s]), Not (And [var a s, var b r])] | (r,s) <- pairsInCliques k, (a,b) <- inverseEdges n edges
       ]
 
