@@ -30,7 +30,7 @@ import Control.Monad (liftM)
 buildGraph :: Int -> Int -> [(Int,Int)] -> Term
 buildGraph n k edges = cnf $
   And [nodeInEveryPosition n k,
-       oneNodePerCliquePosition n k,
+       nodeCannotOccupySameCliquePosition n k,
        edgeDefinition n k edges]
 
 -- | Builds a Var term based on the node position and the clique position.
@@ -54,19 +54,19 @@ nodeInEveryPosition n k = And
        | i <- [1..n]] -- For each node i
    | r <- [1..k]] -- For each position in the clique
 
--- | Proposition that there is only one node per clique position.
+-- | Proposition that same node cannot occupy multiple positions in the clique.
 --
--- >>> display $ oneNodePerCliquePosition 3 2
--- "((~(y[1][1] ^ y[2][1]) ^ ~(y[1][1] ^ y[3][1]) ^ ~(y[2][1] ^ y[3][1])) ^ (~(y[1][2] ^ y[2][2]) ^ ~(y[1][2] ^ y[3][2]) ^ ~(y[2][2] ^ y[3][2])))"
+-- >>> display $ nodeCannotOccupySameCliquePosition 3 2
+-- "(~(y[1][1] ^ y[1][2]) ^ ~(y[2][1] ^ y[2][2]) ^ ~(y[3][1] ^ y[3][2]))"
 --
-oneNodePerCliquePosition :: Int -> Int -> Term
-oneNodePerCliquePosition n k = And
-  [And [Not (And [var i r, var j r])
-        | i <- [1..n], -- For each node i
-          j <- [1..n], -- For each node j
-          i /= j,      -- Where i != j
-          i < j]       -- With undirected edges
-   | r <- [1..k]] -- For each position in the clique.
+nodeCannotOccupySameCliquePosition :: Int -> Int -> Term
+nodeCannotOccupySameCliquePosition n k = And
+  [Not (And [var i r, var i s])
+    | i <- [1..n],
+    r <- [1..k],
+    s <- [1..k],
+    r /= s,
+    r < s]
 
 -- | Proposition stating that if there is no edge between node i and j, then i
 -- and j cannot be in the clique.

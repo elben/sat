@@ -277,12 +277,16 @@ dimacsHeaders terms conjs = "p cnf " ++ show terms ++ " " ++ show conjs
 -- Take term and emit a valid DIMACS string content.
 --
 emitDimacs :: Term -> String
-emitDimacs term = do
+emitDimacs = emitDimacsWithDebug False
+
+emitDimacsWithDebug :: Bool -> Term -> String
+emitDimacsWithDebug debug term = do
   let stm = emit term
   let (str, env) = evalState (runStateT stm M.empty) 0
   let numVars = M.size env
   let numConjs = numConjunctions term
-  dimacsHeaders numVars numConjs ++ "\n" ++ str
+  let s = dimacsHeaders numVars numConjs ++ "\n" ++ str
+  if debug then s ++ "\n" ++ show env else s
 
 display :: Term -> String
 display (Var v) = v
