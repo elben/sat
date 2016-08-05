@@ -118,10 +118,10 @@ cnf (And terms) =
   -- Because we're aiming for CNF, ands are easy to handle. We just evaluate the
   -- inner terms and flatten them if necessary.
   --
-  -- a ^ b  => a ^ b
+  --       a ^ b => a ^ b
   -- a ^ (b ^ c) => a ^ b ^ c
   -- a ^ (b v c) => a ^ (b v c)
-  -- a ^ !b => a ^ !b
+  --      a ^ !b => a ^ !b
   --
   let terms' = map cnf terms
   in erase $ flatten $ And terms'

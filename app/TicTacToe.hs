@@ -21,7 +21,7 @@ import Lib
 --     !(x1 ^ x2 ^ x3) ^
 --     !(x4 ^ x5 ^ x6) ^ ...
 --
---     Applying De Morgan's to get to BNF:
+--     Applying De Morgan's to get to CNF:
 --
 --     (!x1 v !x2 v !x3) ^
 --     (!x4 v !x5 v !x6) ^ ...
@@ -35,7 +35,7 @@ import Lib
 --    !(x1 ^ o1) ^
 --    !(x2 ^ o2) ^ ...
 --
---    Applying De Morgan's to get to BNF:
+--    Applying De Morgan's to get to CNF:
 --
 --    (!x1 v !o1) ^
 --    (!x2 v !o2) ^ ...
