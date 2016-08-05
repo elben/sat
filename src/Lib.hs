@@ -318,6 +318,15 @@ display (Or terms) = "(" ++ intercalate " v " (map display terms) ++ ")"
 -- >>> isCnf (And [Or [Var "a", Not (Var "b")], Or [Var "c", And [Var "d", Var "e"]]])
 -- False
 --
+-- >>> isCnf (Or [])
+-- True
+--
+-- >>> isCnf (And [])
+-- True
+--
+-- >>> isCnf (And [Var "x", Var "y", Or []])
+-- False
+--
 isCnf :: Term -> Bool
 isCnf (Var _) = True
 isCnf (Not (Var _)) = True
@@ -332,4 +341,5 @@ noAndTerms (Var _) = True
 noAndTerms (Not (Var _)) = True
 noAndTerms (Not _) = False
 noAndTerms (And _) = False
+noAndTerms (Or []) = False
 noAndTerms (Or terms) = all noAndTerms terms
