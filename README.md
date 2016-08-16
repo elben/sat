@@ -5,16 +5,16 @@ format](http://www.satcompetition.org/2009/format-benchmarks2009.html) used in
 SAT solvers that accepts this format, like
 [clasp](http://www.cs.uni-potsdam.de/clasp/) and [MiniSat](http://minisat.se/).
 
-You can also write predicates in Haskell that can be converted to conjunctive normal form.
+You can also write boolean formulas in Haskell that can be converted to conjunctive normal form.
 
 In a `stack ghci` (note that `^` means AND, and `v` means OR):
 
 ```haskell
--- Convert the predicate (b ^ c) v a v d ==> ((b v a v d) ^ (c v a v d))
+-- Convert the formula (b ^ c) v a v d ==> ((b v a v d) ^ (c v a v d))
 >> display $ cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
 "((b v a v d) ^ (c v a v d))"
 
--- Convert the predicate, then emit the DIMACS format.
+-- Convert the formula, then emit the DIMACS format.
 putStrLn $ emitDimacs $ cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
 -- p cnf 4 2
 -- 1 2 3 0
