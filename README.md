@@ -7,7 +7,7 @@ SAT solvers that accepts this format, like
 
 You can also write boolean formulas in Haskell that can be converted to conjunctive normal form.
 
-In a `stack ghci` (note that `^` means AND, and `v` means OR):
+In a `cabal new-repl` (note that `^` means AND, and `v` means OR):
 
 ```haskell
 -- Convert the formula (b ^ c) v a v d ==> ((b v a v d) ^ (c v a v d))
@@ -33,12 +33,14 @@ On Linux and Windows, try [MiniSat](http://minisat.se/).
 
 # Using
 
-```
-stack ghci
-stack build
-stack exec doctest -- -isrc -Wall -fno-warn-type-defaults src/Lib.hs
+## Using Nix (recommended)
 
-stack exec sat-exe
+To run a REPL, first open a Nix shell. Then, use `cabal new-repl`, like so:
+
+```bash
+nix-shell --attr env release.nix
+cabal new-repl
+cabal new-run sat-exe
 ```
 
 ## Tic Tac Toe
@@ -51,11 +53,18 @@ The `TicTacToe.hs` file contains detailed description on how we specify this
 problem.
 
 ```bash
-stack ghci
+cabal new-repl
+:l app/TicTacToe
 putStrLn $ emitDimacs TicTacToe.canEndInTie
+```
 
-stack build
-stack exec sat-exe > tictactoe.txt
+To prove that TicTacToe can indeed end in a tie:
+
+```
+cabal new-build
+cabal run sat-exe > tictactoe.txt
+
+# In bash:
 clasp 3 tictactoe.txt
 
 # c clasp version 3.1.3
@@ -74,6 +83,9 @@ clasp 3 tictactoe.txt
 # c Time           : 0.001s (Solving: 0.00s 1st Model: 0.00s Unsat: 0.00s)
 # c CPU Time       : 0.000s
 ```
+
+Note that the answer is `SATISFIABLE`, which means that TicTacToe can indeed end
+in a tie.
 
 ## Clique
 
@@ -96,7 +108,7 @@ For example, the graph below has a clique of size 3. Namely, the nodes
 To use:
 
 ```
-stack ghci
+# Inside of a REPL
 :l app/Clique.hs
 
 >>> putStrLn $ emitDimacs $ buildGraph 6 3 [(1,2), (2,3), (2,5), (3,4), (3,5), (4,6), (5,6)]
@@ -122,16 +134,47 @@ Other problem to solve via SAT:
 
 # Development
 
+Install nix, if you haven't already:
+
+```
+curl https://nixos.org/nix/install | sh
+```
+
+Building `sat.nix`:
+
+```
+rm -f sat.nix && cabal2nix . > sat.nix
+```
+
+Build using Nix:
+
+```
+nix-build release.nix
+```
+
+Getting a Nix shell, and using Cabal to build:
+
+```
+nix-shell --attr env release.nix
+
+cabal new-configure
+cabal new-build
+
+cabal new-run sat-exe
+
+cabal new-repl
+```
+
 Run doc tests:
 
 ```
-stack exec doctest -- -isrc -Wall -fno-warn-type-defaults src/Lib.hs
+doctest -isrc -Wall -fno-warn-type-defaults src/Lib.hs
 ```
 
 Run QuickCheck:
 
 ```
-stack ghci
+# Inside of a REPL
 :l test/Spec.hs
 >> main
 +++ OK, passed 100 tests.
