@@ -1,13 +1,44 @@
 # Satisfiability (SAT) Solver
 
-`sat` is a little program that builds files in the [DIMACS CNF
-format](http://www.satcompetition.org/2009/format-benchmarks2009.html) used in
-SAT solvers that accepts this format, like
-[clasp](http://www.cs.uni-potsdam.de/clasp/) and [MiniSat](http://minisat.se/).
+As children we learn that the game of tic-tac-toe can end in ties. We know this
+from experience. But can we ask a machine to prove that ties exist in
+tic-tac-toe? Or any other game?
 
-You can also write boolean formulas in Haskell that can be converted to conjunctive normal form.
+If we can represent this question in terms of a boolean formula, we can ask
+whether or not this formula is satisfiable. That is, whether we can set the
+various varibles in such a way that the formula returns `True`.
 
-In a `cabal new-repl` (note that `^` means AND, and `v` means OR):
+This is known as the [Boolean
+satisfiability](https://en.wikipedia.org/wiki/Boolean_satisfiability_problem)
+problem, or SAT for short.
+
+For example, consider this simple predicate:
+
+```
+A and B
+```
+
+Where `A` and `B` are variables that can either be set to `True` or `False`.
+The statement above can be satified by setting both variables to
+`True`.
+
+An example statement that cannot be satisfied is `A and (not A)`.
+
+It turns out we can state a wide range of questions in this fashion. But when
+the posed question contains a lot of variables and is very large, we need the
+help of a *solver*. These are specialized programs that can take in large
+questions and spit out whether or not the posed question is satisfiable.
+
+This library is not such a solver. Instead, this library helps you write
+questions in the format that solvers take in. Namely, the [DIMACS CNF
+format](http://www.satcompetition.org/2009/format-benchmarks2009.html). Examples
+of solvers include [clasp](http://www.cs.uni-potsdam.de/clasp/) and
+[MiniSat](http://minisat.se/).
+
+`sat` also allows you to write boolean formulas in Haskell, which can then be
+converted to conjunctive normal form, which is in intermediary format that DMACS
+CNF accepts. Example (note that `^` means AND, and `v`
+means OR):
 
 ```haskell
 -- Convert the formula (b ^ c) v a v d ==> ((b v a v d) ^ (c v a v d))
@@ -21,6 +52,10 @@ putStrLn $ emitDimacs $ cnf (Or [And [Var "b", Var "c"], Var "a", Var "d"])
 -- 4 2 3 0
 ```
 
+The format that `emitDimacs` spat out looks like random stuff, but that is the
+exact text that you would feed the SAT solvers. Continue reading this README to
+see real-world examples.
+
 # Installing
 
 `sat` needs an external SAT solver to work. On OS X, [clasp](http://www.cs.uni-potsdam.de/clasp/) is the easiest to install:
@@ -31,16 +66,28 @@ brew install clasp
 
 On Linux and Windows, try [MiniSat](http://minisat.se/).
 
+SAT uses Nix to build and run the REPL. If you don't have Nix installed:
+
+```
+curl https://nixos.org/nix/install | sh
+```
+
 # Using
 
-## Using Nix (recommended)
-
-To run a REPL, first open a Nix shell. Then, use `cabal new-repl`, like so:
+To run a REPL, first open a Nix shell. All `cabal` commands should be executed
+inside of a Nix shell:
 
 ```bash
 nix-shell --attr env release.nix
-cabal new-repl
+```
+
+Then, we can run the sample program (which is the TicTacToe program described
+below), or open a REPL like so:
+
+```
 cabal new-run sat-exe
+
+cabal new-repl
 ```
 
 ## Tic Tac Toe
@@ -61,7 +108,6 @@ putStrLn $ emitDimacs TicTacToe.canEndInTie
 To prove that TicTacToe can indeed end in a tie:
 
 ```
-cabal new-build
 cabal run sat-exe > tictactoe.txt
 
 # In bash:
@@ -105,12 +151,16 @@ For example, the graph below has a clique of size 3. Namely, the nodes
    1
 ```
 
+We can form a boolean proposition that asks, for a given graph, whether or not
+there is a clique of size `k` in a graph with `n` nodes.
+
 To use:
 
 ```
 # Inside of a REPL
 :l app/Clique.hs
 
+# Note that n = 6, k = 3.
 >>> putStrLn $ emitDimacs $ buildGraph 6 3 [(1,2), (2,3), (2,5), (3,4), (3,5), (4,6), (5,6)]
 
 # Copy-paste output into clique.txt.
@@ -140,9 +190,12 @@ Install nix, if you haven't already:
 curl https://nixos.org/nix/install | sh
 ```
 
-Building `sat.nix`:
+Building a new `sat.nix`:
 
 ```
+# If cabal2nix is not installed:
+nix-env --install cabal2nix
+
 rm -f sat.nix && cabal2nix . > sat.nix
 ```
 
@@ -159,10 +212,6 @@ nix-shell --attr env release.nix
 
 cabal new-configure
 cabal new-build
-
-cabal new-run sat-exe
-
-cabal new-repl
 ```
 
 Run doc tests:
