@@ -31,6 +31,7 @@ executable sat-exe
   build-depends:       base
                      , sat
   default-language:    Haskell2010
+  other-modules:       TicTacToe
 
 test-suite sat-test
   type:                exitcode-stdio-1.0
@@ -38,6 +39,8 @@ test-suite sat-test
   main-is:             Spec.hs
   build-depends:       base
                      , sat
+                     , containers >= 0.5.6.2
+                     , QuickCheck >= 2.8
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
 
